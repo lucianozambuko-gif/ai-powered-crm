@@ -232,13 +232,13 @@ export const tools: Tool[] = [
   },
 ];
 
-/** Tool list in the shape the OpenAI Responses API expects. */
-export const openaiTools = tools.map((t) => ({
+/**
+ * Tool list in the Chat Completions format. Every OpenAI-compatible server
+ * understands it: Ollama, Groq, OpenRouter, LM Studio, vLLM and OpenAI itself.
+ */
+export const chatTools = tools.map((t) => ({
   type: "function" as const,
-  name: t.name,
-  description: t.description,
-  parameters: t.parameters,
-  strict: false,
+  function: { name: t.name, description: t.description, parameters: t.parameters },
 }));
 
 export async function runTool(db: SupabaseClient, name: string, rawArgs: string): Promise<string> {

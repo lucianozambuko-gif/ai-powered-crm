@@ -1,17 +1,11 @@
-import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
-import { openaiTools, runTool } from "@/lib/ai/tools";
-import { systemInstructions } from "@/lib/ai/instructions";
+import { runAgent, type Turn } from "@/lib/ai/agent";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const openai = new OpenAI(); // reads OPENAI_API_KEY
-const MODEL = process.env.OPENAI_MODEL || "gpt-6.1-terra";
-const MAX_TOOL_ROUNDS = 8;
-const HISTORY_LIMIT = 30;
-
-type ToolTrace = { name: string; args: string };
+// Fewer past messages = fewer tokens per request. Keep this small on free tiers.
+const HISTORY_LIMIT = Number(process.env.AI_HISTORY_LIMIT || 12);
 
 export async function POST(req: Request) {
   const db = await createClient();
@@ -27,45 +21,23 @@ export async function POST(req: Request) {
     .select("role, content")
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
-  const history = (past ?? []).reverse().map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+  const history = (past ?? []).reverse() as Turn[];
 
   await db.from("chat_messages").insert({ role: "user", content: message });
 
-  // Agent loop: let the model call tools until it answers in text
-  let input: any[] = [...history, { role: "user", content: message }];
-  const trace: ToolTrace[] = [];
-  let reply = "";
-
   try {
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const response = await openai.responses.create({
-        model: MODEL,
-        instructions: systemInstructions(),
-        input,
-        tools: openaiTools,
-      });
-
-      const calls = response.output.filter((o: any) => o.type === "function_call") as any[];
-      if (calls.length === 0) {
-        reply = response.output_text;
-        break;
-      }
-
-      input = [...input, ...response.output];
-      for (const call of calls) {
-        trace.push({ name: call.name, args: call.arguments });
-        const output = await runTool(db, call.name, call.arguments);
-        input.push({ type: "function_call_output", call_id: call.call_id, output });
-      }
-    }
-    if (!reply) reply = "I ran out of steps on that one. Try asking in smaller parts.";
+    const { reply, tools } = await runAgent(db, history, message);
+    await db.from("chat_messages").insert({ role: "assistant", content: reply });
+    return Response.json({ reply, tools });
   } catch (e) {
     console.error(e);
-    return Response.json({ error: e instanceof Error ? e.message : "Assistant failed" }, { status: 500 });
+    const status = (e as { status?: number }).status;
+    const error =
+      status === 429
+        ? "The AI provider's free limit was hit. Wait a minute and try again."
+        : e instanceof Error ? e.message : "Assistant failed";
+    return Response.json({ error }, { status: 500 });
   }
-
-  await db.from("chat_messages").insert({ role: "assistant", content: reply });
-  return Response.json({ reply, tools: trace });
 }
 
 export async function GET() {

@@ -6,17 +6,16 @@ Tony's personal CRM with an OpenAI assistant built in. Phase 1: contacts, compan
 
 - Next.js 16 (App Router, TypeScript)
 - Supabase: Postgres, Auth (email magic link), Row Level Security
-- OpenAI Responses API with function calling (the agent loop is in `app/api/chat/route.ts`)
+- Any OpenAI-compatible AI server: Ollama (free, local), Groq (free tier) or OpenAI (paid). The agent loop is in `lib/ai/agent.ts`
 
 ## Set up (about 15 minutes)
 
 1. **Supabase project.** Already created: `cloud-crm` (ref `sgohyokchjyoiyucqnrj`, eu-central-1) with both migrations applied. The URL and publishable key are pre-filled in `.env.example` (they are safe to be public; Row Level Security protects the data).
 2. **Auth.** Supabase → Authentication → URL Configuration: set Site URL to `http://localhost:3000` (later, your live URL) and add `http://localhost:3000/auth/callback` to Redirect URLs.
-3. **Env vars.** Copy `.env.example` to `.env.local` and fill in:
-   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Supabase → Project Settings → API)
-   - `OPENAI_API_KEY` (platform.openai.com → API keys). Keep it server-side, never `NEXT_PUBLIC_`.
-   - `OPENAI_MODEL` (any model your account can use with the Responses API)
-   - `ALLOWED_EMAIL` = the only email allowed to sign in
+3. **Env vars.** Copy `.env.example` to `.env.local`, set `ALLOWED_EMAIL`, and uncomment ONE AI provider block:
+   - **Groq (free, easiest):** sign up at console.groq.com, create an API key, paste it into `AI_API_KEY`.
+   - **Ollama (free, private, runs on your computer):** install from ollama.com, run `ollama pull qwen3:8b`, keep Ollama open.
+   - **OpenAI (paid):** paste your `sk-` key.
 4. **Run it.**
    ```bash
    npm install
@@ -33,7 +32,7 @@ Deploy to Vercel (or Render), add the same env vars there, and add `https://YOUR
 ## How the assistant works
 
 - `lib/ai/tools.ts` lists every tool: its JSON schema (sent to OpenAI) and the code that runs it with your Supabase session, so Row Level Security still applies.
-- `app/api/chat/route.ts` sends your message plus recent history to OpenAI, runs any tool calls the model asks for, feeds the results back, and repeats until it answers (max 8 rounds).
+- `lib/ai/agent.ts` sends your message plus recent history to the AI server, runs any tool calls the model asks for, feeds the results back, and repeats until it answers (max 8 rounds). It uses the Chat Completions format, which Ollama, Groq, OpenRouter, LM Studio and OpenAI all support, so switching provider is just the three `AI_` settings.
 - Risky actions never run directly. `request_delete` saves a row in `approvals`; it only runs when you tap **Approve** on the Approvals page.
 
 ### Add a tool
