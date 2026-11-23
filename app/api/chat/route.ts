@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const openai = new OpenAI(); // reads OPENAI_API_KEY
-const MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
+const MODEL = process.env.OPENAI_MODEL || "gpt-6.1-terra";
 const MAX_TOOL_ROUNDS = 8;
 const HISTORY_LIMIT = 30;
 
