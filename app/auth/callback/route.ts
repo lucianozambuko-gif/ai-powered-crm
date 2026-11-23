@@ -1,0 +1,13 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+// The magic-link email lands here; swap the code for a session, then go home.
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  if (code) {
+    const db = await createClient();
+    await db.auth.exchangeCodeForSession(code);
+  }
+  return NextResponse.redirect(new URL("/", url.origin));
+}
