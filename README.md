@@ -23,11 +23,25 @@ Tony's personal CRM with an OpenAI assistant built in. Phase 1: contacts, compan
    ```
    Open http://localhost:3000, sign in with the magic link, and start chatting.
 
-## Put it on your phone
+## Put it on your phone (Ollama setup)
 
-Deploy to Vercel (or Render), add the same env vars there, and add `https://YOUR-APP/auth/callback` to Supabase's Redirect URLs. Then open the site on your phone:
-- **Android (Chrome):** menu → Install app
-- **iPhone (Safari):** Share → Add to Home Screen
+With Ollama the AI runs on your laptop, so the whole app runs there too, and your phone reaches it privately through Tailscale (free).
+
+1. On the laptop, run the app in production mode:
+   ```bash
+   npm run build
+   npm start
+   ```
+2. Install Tailscale on the laptop and the phone (tailscale.com/download) and sign in to both with the same account.
+3. On the laptop, run `tailscale serve --bg 3000`. It prints an HTTPS address like `https://your-laptop.tail1234.ts.net`.
+4. In Supabase → Authentication → URL Configuration, add `https://your-laptop.tail1234.ts.net/auth/callback` to Redirect URLs.
+5. Open that address on your phone and install it:
+   - **Android (Chrome):** menu → Install app
+   - **iPhone (Safari):** Share → Add to Home Screen
+
+The laptop must be on, with Ollama and `npm start` running, for the assistant to answer.
+
+If you later switch to Groq or OpenAI instead, you can deploy to Vercel and skip Tailscale.
 
 ## How the assistant works
 
